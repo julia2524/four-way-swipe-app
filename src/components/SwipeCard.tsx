@@ -1,4 +1,4 @@
-import { Animated, Text, View } from "react-native";
+import { Animated, PanResponder, Text, View } from "react-native";
 import { DirectionType, IGameCard } from "../types/game";
 import styled, { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -144,6 +144,7 @@ const CenterCard = styled.View`
   shadow-radius: 15px;
   elevation: 10; */
 `;
+const SCenterCard = Animated.createAnimatedComponent(CenterCard);
 const MainWord = styled.Text<{ targetColor: string }>`
   font-size: 40px;
   font-weight: bold;
@@ -183,6 +184,17 @@ export default function SwipeCard({ data }: SwipeCardProps) {
     toValue: 1,
     useNativeDriver: true,
   });
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        onPressIn.start();
+      },
+      onPanResponderRelease: () => onPressOut.start(),
+    }),
+  ).current;
+
   return (
     <SContainer>
       <TopHeader>
@@ -242,14 +254,17 @@ export default function SwipeCard({ data }: SwipeCardProps) {
             color="#4b5563"
             style={{ opacity: 0.5 }}
           />
-          <CenterCard style={{ transform: [{ scale }] }}>
+          <SCenterCard
+            {...panResponder.panHandlers}
+            style={{ transform: [{ scale }] }}
+          >
             <MainWord targetColor={data[index].labelColor}>
               {data[index].label}
             </MainWord>
             <CardSubDesc>
               글자의 색상을 보고{"\n"} 같은 색으로 밀어주세요!
             </CardSubDesc>
-          </CenterCard>
+          </SCenterCard>
           <Ionicons
             name="chevron-forward"
             size={24}
