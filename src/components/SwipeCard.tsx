@@ -139,6 +139,7 @@ const CenterCard = styled.View`
   text-align: center;
   line-height: 15px;
   padding: 8px;
+  z-index: 99;
   /* shadow-color: #000;
   shadow-opacity: 0.3;
   shadow-radius: 15px;
@@ -184,6 +185,10 @@ export default function SwipeCard({ data }: SwipeCardProps) {
     toValue: 1,
     useNativeDriver: true,
   });
+  const goCenter = Animated.spring(position, {
+    toValue: 0,
+    useNativeDriver: true,
+  });
 
   const panResponder = useRef(
     PanResponder.create({
@@ -191,7 +196,11 @@ export default function SwipeCard({ data }: SwipeCardProps) {
       onPanResponderGrant: () => {
         onPressIn.start();
       },
-      onPanResponderRelease: () => onPressOut.start(),
+      onPanResponderMove: (_, { dx, dy }) => {
+        position.setValue({ x: dx, y: dy });
+      },
+      onPanResponderRelease: () =>
+        Animated.parallel([onPressOut, goCenter]).start(),
     }),
   ).current;
 
@@ -256,7 +265,13 @@ export default function SwipeCard({ data }: SwipeCardProps) {
           />
           <SCenterCard
             {...panResponder.panHandlers}
-            style={{ transform: [{ scale }] }}
+            style={{
+              transform: [
+                { scale },
+                { translateX: position.x },
+                { translateY: position.y },
+              ],
+            }}
           >
             <MainWord targetColor={data[index].labelColor}>
               {data[index].label}
