@@ -11,7 +11,7 @@ export const gameCards: IGameCard[] = [
     id: 2,
     label: "노랑",
     labelColor: "blue", // 실제 색상은 파랑
-    targetDirection: "bottom", // 파랑인 '아래(bottom)'로 밀기
+    targetDirection: "right", // 파랑인 '아래(bottom)'로 밀기
   },
   {
     id: 3,
@@ -23,6 +23,6 @@ export const gameCards: IGameCard[] = [
     id: 4,
     label: "초록",
     labelColor: "yellow", // 실제 색상은 노랑
-    targetDirection: "right", // 노랑인 '오른쪽(right)'으로 밀기
+    targetDirection: "bottom", // 노랑인 '아래(bottom)'으로 밀기
   },
 ];

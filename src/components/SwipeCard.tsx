@@ -1,4 +1,4 @@
-import { Animated, PanResponder, Text, View } from "react-native";
+import { Animated, Easing, PanResponder, Text, View } from "react-native";
 import { DirectionType, IGameCard } from "../types/game";
 import styled, { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -129,6 +129,13 @@ const TargetHorizontal = styled.View<{ targetColor: string }>`
   shadow-radius: 8px;
   elevation: 5; */
 `;
+const CardPlaceholder = styled.View`
+  width: 135px;
+  height: 170px;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+`;
 const CenterCard = styled.View`
   width: 135px;
   height: 170px;
@@ -140,6 +147,7 @@ const CenterCard = styled.View`
   line-height: 15px;
   padding: 8px;
   z-index: 99;
+  position: absolute;
   /* shadow-color: #000;
   shadow-opacity: 0.3;
   shadow-radius: 15px;
@@ -169,13 +177,39 @@ const TipBox = styled.View`
   border: 1px solid ${(props) => props.theme.borderColor};
   margin-top: auto;
 `;
+// const FeedbackText = styled.Text<{
+//   feedback: "correct" | "wrong";
+// }>`
+//   position: absolute;
+//   top: 50%;
+//   font-size: 24px;
+//   font-weight: bold;
+//   color: ${(props) => (props.feedback === "correct" ? "#2ed573" : "#ff4757")};
+//   z-index: 200;
+// `;
+const FeedbackText = styled.Text<{ isCorrect: boolean }>`
+  font-size: 32px;
+  font-weight: bold;
+  color: ${(props) => (props.isCorrect ? "#2ed573" : "#ff4757")};
+  text-align: center;
 
+  /* text-shadow-color: rgba(0, 0, 0, 0.4);
+  text-shadow-offset: { width: 0, height: 2 };
+  text-shadow-radius: 4px; */
+`;
 export default function SwipeCard({ data }: SwipeCardProps) {
   const theme = useTheme();
   const [index, setIndex] = useState(0);
+  const indexRef = useRef(index);
+  indexRef.current = index; // 렌더링될 때마다 최신 index로 업데이트
+  const [score, setScore] = useState(0);
+  const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
 
   const position = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  // const backScale = useRef(new Animated.Value(1)).current;
 
   const onPressIn = Animated.spring(scale, {
     toValue: 0.9,
@@ -190,6 +224,85 @@ export default function SwipeCard({ data }: SwipeCardProps) {
     useNativeDriver: true,
   });
 
+  const goSmaller = Animated.timing(scale, {
+    toValue: 0,
+    duration: 120,
+    easing: Easing.linear,
+    useNativeDriver: true,
+  });
+  const goFaded = Animated.timing(opacity, {
+    toValue: 0,
+    duration: 120,
+    easing: Easing.linear,
+    useNativeDriver: true,
+  });
+  const checkSwipeDirection = (
+    dx: number,
+    dy: number,
+  ): DirectionType | null => {
+    const verticalThreshold = 120;
+    const horizontalThreshold = 60;
+    // if (Math.abs(dy) > Math.abs(dx)) {
+    //   if (dy < -verticalThreshold) return "top";
+    //   if (dy > verticalThreshold) return "bottom";
+    // }
+    // // 2. 가로 움직임이 세로 움직임보다 확실히 클 때 (좌 또는 우)
+    // else {
+    //   if (dx < -horizontalThreshold) return "left";
+    //   if (dx > horizontalThreshold) return "right";
+    // }
+
+    if (dy < -verticalThreshold && Math.abs(dx) < Math.abs(dy)) return "top";
+    if (dy > verticalThreshold && Math.abs(dx) < Math.abs(dy)) return "bottom";
+    if (dx < -horizontalThreshold && Math.abs(dy) < Math.abs(dx)) return "left";
+    if (dx > horizontalThreshold && Math.abs(dy) < Math.abs(dx)) return "right";
+
+    return null; // 애매하게 움직였다가 제자리로 돌아온 경우
+  };
+
+  const shakeAnimation = () => {
+    // position.setValue({ x: 0, y: 0 });
+    Animated.sequence([
+      Animated.timing(position, {
+        toValue: { x: -15, y: 0 },
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(position, {
+        toValue: { x: 15, y: 0 },
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(position, {
+        toValue: { x: -10, y: 0 },
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(position, {
+        toValue: { x: 10, y: 0 },
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(position, {
+        toValue: { x: 0, y: 0 },
+        duration: 50,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+  const feedbackScale = useRef(new Animated.Value(0)).current;
+
+  // 정답/오답이 될 때 실행
+  const showFeedbackAnimation = () => {
+    feedbackScale.setValue(0);
+    Animated.timing(feedbackScale, {
+      toValue: 1,
+      duration: 200,
+      easing: Easing.out(Easing.back(1.5)),
+      useNativeDriver: true,
+    }).start();
+  };
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -197,10 +310,67 @@ export default function SwipeCard({ data }: SwipeCardProps) {
         onPressIn.start();
       },
       onPanResponderMove: (_, { dx, dy }) => {
+        console.log("dx: ", dx, "dy: ", dy);
         position.setValue({ x: dx, y: dy });
       },
-      onPanResponderRelease: () =>
-        Animated.parallel([onPressOut, goCenter]).start(),
+      onPanResponderRelease: (_, { dx, dy }) => {
+        const direction = checkSwipeDirection(dx, dy);
+        if (!direction) {
+          Animated.parallel([onPressOut, goCenter]).start();
+          return;
+        }
+        const currentIndex = indexRef.current;
+        const targetDirection = data[currentIndex].targetDirection;
+        console.log({
+          dx,
+          dy,
+          direction,
+          targetDirection,
+        });
+        const isCorrect = direction === targetDirection;
+
+        if (isCorrect) {
+          setScore((prev) => prev + 10);
+          setFeedback("correct");
+          showFeedbackAnimation();
+          //correct 애니메이션
+
+          Animated.sequence([
+            Animated.parallel([goSmaller, goFaded]),
+            Animated.timing(position, {
+              toValue: { x: 0, y: 0 },
+              duration: 50,
+              easing: Easing.linear,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            setTimeout(() => {
+              position.setValue({ x: 0, y: 0 });
+              scale.setValue(1);
+              opacity.setValue(1);
+              setFeedback(null);
+              setIndex((prev) => (prev + 1 < data.length ? prev + 1 : 0));
+            }, 250);
+          });
+        } else {
+          Animated.parallel([onPressOut, goCenter]).start();
+          shakeAnimation();
+          setTimeout(() => {
+            Animated.parallel([goFaded, goSmaller]).start(() => {
+              setFeedback("wrong");
+              showFeedbackAnimation();
+              setTimeout(() => {
+                position.setValue({ x: 0, y: 0 });
+                scale.setValue(1);
+                feedbackScale.setValue(0);
+                setIndex((prev) => (prev + 1 < data.length ? prev + 1 : 0));
+                opacity.setValue(1);
+                setFeedback(null);
+              }, 500);
+            });
+          }, 250);
+        }
+      },
     }),
   ).current;
 
@@ -209,7 +379,7 @@ export default function SwipeCard({ data }: SwipeCardProps) {
       <TopHeader>
         <HeaderBox>
           <HeaderLabel>점수</HeaderLabel>
-          <HeaderValue>320</HeaderValue>
+          <HeaderValue>{score}</HeaderValue>
         </HeaderBox>
         <HeaderBox>
           <HeaderLabel>남은 시간</HeaderLabel>
@@ -224,6 +394,24 @@ export default function SwipeCard({ data }: SwipeCardProps) {
         </HeaderBox>
       </TopHeader>
       <GameArea>
+        {/* {feedback && (
+          <FeedbackText feedback={feedback}>
+            {feedback === "correct" ? "정답! 🎉" : "아쉬워요! 😅"}
+          </FeedbackText>
+        )} */}
+        {feedback && (
+          <Animated.View
+            style={{
+              transform: [{ scale: feedbackScale }],
+              position: "absolute",
+              zIndex: 100,
+            }}
+          >
+            <FeedbackText isCorrect={feedback === "correct"}>
+              {feedback === "correct" ? "✨ 정답! (+10)" : "❌ 오답!"}
+            </FeedbackText>
+          </Animated.View>
+        )}
         <TargetVertical targetColor={theme.red}>
           <IConCircle targetColor={theme.red}>
             <Ionicons name="arrow-up" size={20} color="#ffffff" />
@@ -263,23 +451,23 @@ export default function SwipeCard({ data }: SwipeCardProps) {
             color="#4b5563"
             style={{ opacity: 0.5 }}
           />
-          <SCenterCard
-            {...panResponder.panHandlers}
-            style={{
-              transform: [
-                { scale },
-                { translateX: position.x },
-                { translateY: position.y },
-              ],
-            }}
-          >
-            <MainWord targetColor={data[index].labelColor}>
-              {data[index].label}
-            </MainWord>
-            <CardSubDesc>
-              글자의 색상을 보고{"\n"} 같은 색으로 밀어주세요!
-            </CardSubDesc>
-          </SCenterCard>
+
+          <CardPlaceholder>
+            <SCenterCard
+              {...panResponder.panHandlers}
+              style={{
+                opacity,
+                transform: [...position.getTranslateTransform(), { scale }],
+              }}
+            >
+              <MainWord targetColor={data[index].labelColor}>
+                {data[index].label}
+              </MainWord>
+              <CardSubDesc>
+                글자의 색상을 보고{"\n"} 같은 색으로 밀어주세요!
+              </CardSubDesc>
+            </SCenterCard>
+          </CardPlaceholder>
           <Ionicons
             name="chevron-forward"
             size={24}
