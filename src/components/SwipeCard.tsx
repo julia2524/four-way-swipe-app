@@ -483,7 +483,7 @@ export default function SwipeCard({ data }: SwipeCardProps) {
         </HeaderBox>
         <HeaderBox>
           <HeaderLabel>남은 카드</HeaderLabel>
-          <HeaderValue>{`8 / ${TOTAL_QUESTIONS}`}</HeaderValue>
+          <HeaderValue>{`${isStarted ? `${index + 1}` : 0} / ${data.length}`}</HeaderValue>
         </HeaderBox>
       </TopHeader>
       <GameArea>
@@ -517,7 +517,7 @@ export default function SwipeCard({ data }: SwipeCardProps) {
           <>
             <TargetVertical targetColor={theme.red}>
               <IConCircle targetColor={theme.red}>
-                <Ionicons name="arrow-up" size={20} color="#ffffff" />
+                <Ionicons name="arrow-up" size={20} color={theme.arrowColor} />
               </IConCircle>
               <TargetLabelVertical>
                 <TargetLabelName targetColor={theme.red}>빨강</TargetLabelName>
@@ -541,7 +541,11 @@ export default function SwipeCard({ data }: SwipeCardProps) {
             <MiddleRow>
               <TargetHorizontal targetColor={theme.green}>
                 <IConCircle targetColor={theme.green}>
-                  <Ionicons name="arrow-back" size={20} color="#ffffff" />
+                  <Ionicons
+                    name="arrow-back"
+                    size={20}
+                    color={theme.arrowColor}
+                  />
                 </IConCircle>
                 <TargetLabelHorizontal>
                   <TargetLabelName targetColor={theme.green}>
@@ -583,7 +587,11 @@ export default function SwipeCard({ data }: SwipeCardProps) {
               />
               <TargetHorizontal targetColor={theme.blue}>
                 <IConCircle targetColor={theme.blue}>
-                  <Ionicons name="arrow-forward" size={20} color="#ffffff" />
+                  <Ionicons
+                    name="arrow-forward"
+                    size={20}
+                    color={theme.arrowColor}
+                  />
                 </IConCircle>
                 <TargetLabelHorizontal>
                   <TargetLabelName targetColor={theme.blue}>
@@ -609,7 +617,11 @@ export default function SwipeCard({ data }: SwipeCardProps) {
             />
             <TargetVertical targetColor={theme.yellow}>
               <IConCircle targetColor={theme.yellow}>
-                <Ionicons name="arrow-down" size={20} color="#ffffff" />
+                <Ionicons
+                  name="arrow-down"
+                  size={20}
+                  color={theme.arrowColor}
+                />
               </IConCircle>
               <TargetLabelVertical>
                 <TargetLabelName targetColor={theme.yellow}>

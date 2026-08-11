@@ -17,6 +17,8 @@ export const lightTheme = {
   blue: "#3182CE",
   green: "#38A169",
   yellow: "#D69E2E",
+
+  arrowColor: "#1B1E26",
 };
 export const darkTheme = {
   bgColor: "#111318",
@@ -34,4 +36,6 @@ export const darkTheme = {
   blue: "#4D96FF",
   green: "#6BCB77",
   yellow: "#FFD93D",
+
+  arrowColor: "#ffffff",
 };

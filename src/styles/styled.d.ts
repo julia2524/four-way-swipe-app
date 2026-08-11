@@ -30,5 +30,7 @@ declare module "styled-components/native" {
     blue: string;
     green: string;
     yellow: string;
+
+    arrowColor: string;
   }
 }
