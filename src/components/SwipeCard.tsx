@@ -405,12 +405,26 @@ export default function SwipeCard({ data }: SwipeCardProps) {
     }),
   ).current;
 
-  const startGame = () => {
-    setIsStarted(true);
+  const resetGame = () => {
+    setIndex(0);
+    setScore(0);
+    setTimeLeft(GAME_TIME);
+
+    setFeedback(null);
+    setIsStarted(false);
     setIsGameOver(false);
 
-    // 버튼을 누른 바로 그 순간 타이머 애니메이션 시작!
+    position.setValue({ x: 0, y: 0 });
+    scale.setValue(1);
+    opacity.setValue(1);
+
+    feedbackScale.setValue(0);
     timerAnim.setValue(100);
+  };
+  const startGame = () => {
+    resetGame();
+    setIsStarted(true);
+
     Animated.timing(timerAnim, {
       toValue: 0,
       duration: GAME_TIME * 1000,
@@ -438,9 +452,12 @@ export default function SwipeCard({ data }: SwipeCardProps) {
   useEffect(() => {
     if (!isStarted || isGameOver) return; // 시작 전에는 실행 안 함!
     const timer = setInterval(() => {
+      if (isGameOver) return;
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
+          setFeedback(null);
+          feedbackScale.setValue(0);
           setIsGameOver(true);
           return 0;
         }
@@ -448,7 +465,7 @@ export default function SwipeCard({ data }: SwipeCardProps) {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isStarted]);
+  }, [isStarted, isGameOver]);
 
   return (
     <SContainer>
