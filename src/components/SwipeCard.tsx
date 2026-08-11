@@ -1,8 +1,15 @@
-import { Animated, Easing, PanResponder, Text, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  PanResponder,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { DirectionType, IGameCard } from "../types/game";
 import styled, { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface SwipeCardProps {
   data: IGameCard[];
@@ -53,12 +60,18 @@ const TimerBarContainer = styled.View`
   margin-bottom: -3px;
   overflow: hidden;
 `;
+// const TimerBarFill = styled.View`
+//   width: 60%;
+//   height: 100%;
+//   background-color: #ff4757;
+//   border-radius: 2px;
+// `;
 const TimerBarFill = styled.View`
-  width: 60%;
   height: 100%;
   background-color: #ff4757;
   border-radius: 2px;
 `;
+const STimerBarFill = Animated.createAnimatedComponent(TimerBarFill);
 const TargetVertical = styled.View<{ targetColor: string }>`
   width: 160px;
   height: 70px;
@@ -177,16 +190,7 @@ const TipBox = styled.View`
   border: 1px solid ${(props) => props.theme.borderColor};
   margin-top: auto;
 `;
-// const FeedbackText = styled.Text<{
-//   feedback: "correct" | "wrong";
-// }>`
-//   position: absolute;
-//   top: 50%;
-//   font-size: 24px;
-//   font-weight: bold;
-//   color: ${(props) => (props.feedback === "correct" ? "#2ed573" : "#ff4757")};
-//   z-index: 200;
-// `;
+
 const FeedbackText = styled.Text<{ isCorrect: boolean }>`
   font-size: 32px;
   font-weight: bold;
@@ -197,6 +201,31 @@ const FeedbackText = styled.Text<{ isCorrect: boolean }>`
   text-shadow-offset: { width: 0, height: 2 };
   text-shadow-radius: 4px; */
 `;
+const StartButton = styled.TouchableOpacity`
+  background-color: #1e90ff;
+  padding: 16px 40px;
+  border-radius: 25px;
+  align-items: center;
+  justify-content: center;
+  /* shadow-color: #1e90ff;
+  shadow-opacity: 0.4;
+  shadow-radius: 10px;
+  elevation: 6; */
+`;
+
+const StartButtonText = styled.Text`
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: bold;
+`;
+
+const GameOverText = styled.Text`
+  font-size: 28px;
+  font-weight: bold;
+  color: #ff4757;
+  text-align: center;
+`;
+
 export default function SwipeCard({ data }: SwipeCardProps) {
   const theme = useTheme();
   const [index, setIndex] = useState(0);
@@ -204,6 +233,8 @@ export default function SwipeCard({ data }: SwipeCardProps) {
   indexRef.current = index; // 렌더링될 때마다 최신 index로 업데이트
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
+  const [isStarted, setIsStarted] = useState(false);
+  const [isGameOver, setIsGameOver] = useState(false);
 
   const position = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const scale = useRef(new Animated.Value(1)).current;
@@ -374,6 +405,51 @@ export default function SwipeCard({ data }: SwipeCardProps) {
     }),
   ).current;
 
+  const startGame = () => {
+    setIsStarted(true);
+    setIsGameOver(false);
+
+    // 버튼을 누른 바로 그 순간 타이머 애니메이션 시작!
+    timerAnim.setValue(100);
+    Animated.timing(timerAnim, {
+      toValue: 0,
+      duration: GAME_TIME * 1000,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const GAME_TIME = 10;
+  const TOTAL_QUESTIONS = 20;
+  const [timeLeft, setTimeLeft] = useState(GAME_TIME);
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+
+    return `${String(minutes).padStart(2, "0")}:${String(
+      remainingSeconds,
+    ).padStart(2, "0")}`;
+  };
+  const timerAnim = useRef(new Animated.Value(100)).current;
+  const timerWidth = timerAnim.interpolate({
+    inputRange: [0, 100],
+    outputRange: ["0%", "100%"],
+  });
+  useEffect(() => {
+    if (!isStarted || isGameOver) return; // 시작 전에는 실행 안 함!
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsGameOver(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isStarted]);
+
   return (
     <SContainer>
       <TopHeader>
@@ -383,22 +459,17 @@ export default function SwipeCard({ data }: SwipeCardProps) {
         </HeaderBox>
         <HeaderBox>
           <HeaderLabel>남은 시간</HeaderLabel>
-          <HeaderValue>00:45</HeaderValue>
+          <HeaderValue>{formatTime(timeLeft)}</HeaderValue>
           <TimerBarContainer>
-            <TimerBarFill />
+            <STimerBarFill style={{ width: timerWidth }} />
           </TimerBarContainer>
         </HeaderBox>
         <HeaderBox>
           <HeaderLabel>남은 카드</HeaderLabel>
-          <HeaderValue>8 / 20</HeaderValue>
+          <HeaderValue>{`8 / ${TOTAL_QUESTIONS}`}</HeaderValue>
         </HeaderBox>
       </TopHeader>
       <GameArea>
-        {/* {feedback && (
-          <FeedbackText feedback={feedback}>
-            {feedback === "correct" ? "정답! 🎉" : "아쉬워요! 😅"}
-          </FeedbackText>
-        )} */}
         {feedback && (
           <Animated.View
             style={{
@@ -412,101 +483,128 @@ export default function SwipeCard({ data }: SwipeCardProps) {
             </FeedbackText>
           </Animated.View>
         )}
-        <TargetVertical targetColor={theme.red}>
-          <IConCircle targetColor={theme.red}>
-            <Ionicons name="arrow-up" size={20} color="#ffffff" />
-          </IConCircle>
-          <TargetLabelVertical>
-            <TargetLabelName targetColor={theme.red}>빨강</TargetLabelName>
-            <TargetDirectionVertical>위로 밀어주세요</TargetDirectionVertical>
-          </TargetLabelVertical>
-        </TargetVertical>
-        <Ionicons
-          name="chevron-up"
-          size={24}
-          color="#4b5563"
-          style={{ opacity: 0.5 }}
-        />
-        <Ionicons
-          name="chevron-up"
-          size={24}
-          color="#4b5563"
-          style={{ opacity: 0.5 }}
-        />
-        <MiddleRow>
-          <TargetHorizontal targetColor={theme.green}>
-            <IConCircle targetColor={theme.green}>
-              <Ionicons name="arrow-back" size={20} color="#ffffff" />
-            </IConCircle>
-            <TargetLabelHorizontal>
-              <TargetLabelName targetColor={theme.green}>초록</TargetLabelName>
-              <TargetDirectionHorizontal>
-                왼쪽으로{"\n"} 밀어주세요
-              </TargetDirectionHorizontal>
-            </TargetLabelHorizontal>
-          </TargetHorizontal>
-          <Ionicons
-            name="chevron-back"
-            size={24}
-            color="#4b5563"
-            style={{ opacity: 0.5 }}
-          />
+        {!isStarted ? (
+          <StartButton onPress={startGame}>
+            <StartButtonText>시작</StartButtonText>
+          </StartButton>
+        ) : isGameOver ? (
+          // ✨ 게임 오버일 때 보여줄 화면 & 재시작 버튼
+          <View style={{ alignItems: "center", gap: 20 }}>
+            <GameOverText>게임 종료! 🎉</GameOverText>
+            <HeaderValue>최종 점수: {score}점</HeaderValue>
+            <StartButton onPress={startGame}>
+              <StartButtonText>다시 시작</StartButtonText>
+            </StartButton>
+          </View>
+        ) : (
+          <>
+            <TargetVertical targetColor={theme.red}>
+              <IConCircle targetColor={theme.red}>
+                <Ionicons name="arrow-up" size={20} color="#ffffff" />
+              </IConCircle>
+              <TargetLabelVertical>
+                <TargetLabelName targetColor={theme.red}>빨강</TargetLabelName>
+                <TargetDirectionVertical>
+                  위로 밀어주세요
+                </TargetDirectionVertical>
+              </TargetLabelVertical>
+            </TargetVertical>
+            <Ionicons
+              name="chevron-up"
+              size={24}
+              color="#4b5563"
+              style={{ opacity: 0.5 }}
+            />
+            <Ionicons
+              name="chevron-up"
+              size={24}
+              color="#4b5563"
+              style={{ opacity: 0.5 }}
+            />
+            <MiddleRow>
+              <TargetHorizontal targetColor={theme.green}>
+                <IConCircle targetColor={theme.green}>
+                  <Ionicons name="arrow-back" size={20} color="#ffffff" />
+                </IConCircle>
+                <TargetLabelHorizontal>
+                  <TargetLabelName targetColor={theme.green}>
+                    초록
+                  </TargetLabelName>
+                  <TargetDirectionHorizontal>
+                    왼쪽으로{"\n"} 밀어주세요
+                  </TargetDirectionHorizontal>
+                </TargetLabelHorizontal>
+              </TargetHorizontal>
+              <Ionicons
+                name="chevron-back"
+                size={24}
+                color="#4b5563"
+                style={{ opacity: 0.5 }}
+              />
 
-          <CardPlaceholder>
-            <SCenterCard
-              {...panResponder.panHandlers}
-              style={{
-                opacity,
-                transform: [...position.getTranslateTransform(), { scale }],
-              }}
-            >
-              <MainWord targetColor={data[index].labelColor}>
-                {data[index].label}
-              </MainWord>
-              <CardSubDesc>
-                글자의 색상을 보고{"\n"} 같은 색으로 밀어주세요!
-              </CardSubDesc>
-            </SCenterCard>
-          </CardPlaceholder>
-          <Ionicons
-            name="chevron-forward"
-            size={24}
-            color="#4b5563"
-            style={{ opacity: 0.5 }}
-          />
-          <TargetHorizontal targetColor={theme.blue}>
-            <IConCircle targetColor={theme.blue}>
-              <Ionicons name="arrow-forward" size={20} color="#ffffff" />
-            </IConCircle>
-            <TargetLabelHorizontal>
-              <TargetLabelName targetColor={theme.blue}>파랑</TargetLabelName>
-              <TargetDirectionHorizontal>
-                오른쪽으로{"\n"} 밀어주세요
-              </TargetDirectionHorizontal>
-            </TargetLabelHorizontal>
-          </TargetHorizontal>
-        </MiddleRow>
-        <Ionicons
-          name="chevron-down"
-          size={24}
-          color="#4b5563"
-          style={{ opacity: 0.5 }}
-        />
-        <Ionicons
-          name="chevron-down"
-          size={24}
-          color="#4b5563"
-          style={{ opacity: 0.5 }}
-        />
-        <TargetVertical targetColor={theme.yellow}>
-          <IConCircle targetColor={theme.yellow}>
-            <Ionicons name="arrow-down" size={20} color="#ffffff" />
-          </IConCircle>
-          <TargetLabelVertical>
-            <TargetLabelName targetColor={theme.yellow}>노랑</TargetLabelName>
-            <TargetDirectionVertical>아래로 밀어주세요</TargetDirectionVertical>
-          </TargetLabelVertical>
-        </TargetVertical>
+              <CardPlaceholder>
+                <SCenterCard
+                  {...panResponder.panHandlers}
+                  style={{
+                    opacity,
+                    transform: [...position.getTranslateTransform(), { scale }],
+                  }}
+                >
+                  <MainWord targetColor={data[index].labelColor}>
+                    {data[index].label}
+                  </MainWord>
+                  <CardSubDesc>
+                    글자의 색상을 보고{"\n"} 같은 색으로 밀어주세요!
+                  </CardSubDesc>
+                </SCenterCard>
+              </CardPlaceholder>
+              <Ionicons
+                name="chevron-forward"
+                size={24}
+                color="#4b5563"
+                style={{ opacity: 0.5 }}
+              />
+              <TargetHorizontal targetColor={theme.blue}>
+                <IConCircle targetColor={theme.blue}>
+                  <Ionicons name="arrow-forward" size={20} color="#ffffff" />
+                </IConCircle>
+                <TargetLabelHorizontal>
+                  <TargetLabelName targetColor={theme.blue}>
+                    파랑
+                  </TargetLabelName>
+                  <TargetDirectionHorizontal>
+                    오른쪽으로{"\n"} 밀어주세요
+                  </TargetDirectionHorizontal>
+                </TargetLabelHorizontal>
+              </TargetHorizontal>
+            </MiddleRow>
+            <Ionicons
+              name="chevron-down"
+              size={24}
+              color="#4b5563"
+              style={{ opacity: 0.5 }}
+            />
+            <Ionicons
+              name="chevron-down"
+              size={24}
+              color="#4b5563"
+              style={{ opacity: 0.5 }}
+            />
+            <TargetVertical targetColor={theme.yellow}>
+              <IConCircle targetColor={theme.yellow}>
+                <Ionicons name="arrow-down" size={20} color="#ffffff" />
+              </IConCircle>
+              <TargetLabelVertical>
+                <TargetLabelName targetColor={theme.yellow}>
+                  노랑
+                </TargetLabelName>
+                <TargetDirectionVertical>
+                  아래로 밀어주세요
+                </TargetDirectionVertical>
+              </TargetLabelVertical>
+            </TargetVertical>
+          </>
+        )}
       </GameArea>
       <TipBox>
         <Ionicons name="bulb" size={22} color="#1e90ff" />
